@@ -28,7 +28,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
 2. **Creare la cartella di lavoro e il file della consegna.**
 
-   **Windows — PowerShell:** impostare il percorso di Documenti, anche se reindirizzato su OneDrive:
+   **Windows - PowerShell:** impostare il percorso di Documenti, anche se reindirizzato su OneDrive:
 
    ```powershell
    $lab = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'lab02-wifi-vpn'
@@ -62,7 +62,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
 3. **Raccogliere i dati Wi-Fi del proprio sistema operativo.**
 
-   **Windows — PowerShell:** visualizzare le schede e il loro stato:
+   **Windows - PowerShell:** visualizzare le schede e il loro stato:
 
    ```powershell
    Get-NetAdapter | Select-Object Name, InterfaceDescription, Status, LinkSpeed
@@ -138,7 +138,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
    Il comando apre solo le Impostazioni. Se consentito dal docente e dalle regole del dispositivo, annotare le impostazioni iniziali e abilitare i servizi di posizione e l’accesso richiesto dalle opzioni disponibili. Riprovare l’interrogazione del passo 3 solo dopo questa modifica. Se le opzioni sono gestite dall’organizzazione o l’errore persiste, proseguire con il caso sintetico senza cambiare criteri, registro o privilegi.
 
-   Riferimenti: [Microsoft — Accesso Wi-Fi e posizione](https://learn.microsoft.com/it-it/windows/win32/nativewifi/wi-fi-access-location-changes) e [Microsoft — Diagnosi wireless e ruolo di WlanSvc](https://learn.microsoft.com/en-us/troubleshoot/windows-client/networking/wireless-network-connectivity-issues-troubleshooting).
+   Riferimenti: [Microsoft - Accesso Wi-Fi e posizione](https://learn.microsoft.com/it-it/windows/win32/nativewifi/wi-fi-access-location-changes) e [Microsoft - Diagnosi wireless e ruolo di WlanSvc](https://learn.microsoft.com/en-us/troubleshoot/windows-client/networking/wireless-network-connectivity-issues-troubleshooting).
 
 6. **Registrare i parametri radio e distinguere le fonti.**
 
@@ -174,7 +174,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
    Se una VPN istituzionale deve rimanere attiva, non disconnetterla: in questo passo sostituire `configurazione-senza-vpn.txt` con `configurazione-attuale.txt`, poi saltare i passi 9–13 e usare il caso sintetico del passo 14.
 
-   **Windows — PowerShell:** salvare indirizzi, gateway e DNS:
+   **Windows - PowerShell:** salvare indirizzi, gateway e DNS:
 
    ```powershell
    Get-NetIPConfiguration | Format-List * | Out-File configurazione-senza-vpn.txt -Encoding utf8
@@ -216,7 +216,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
 9. **Salvare il percorso prima della VPN.**
 
-   **Windows — PowerShell:**
+   **Windows - PowerShell:**
 
    ```powershell
    tracert -d example.com 2>&1 | Out-File percorso-senza-vpn.txt -Encoding utf8
@@ -240,7 +240,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
 11. **Salvare la configurazione dopo la connessione VPN.**
 
-    **Windows — PowerShell:** salvare la configurazione IP:
+    **Windows - PowerShell:** salvare la configurazione IP:
 
     ```powershell
     Get-NetIPConfiguration | Format-List * | Out-File configurazione-con-vpn.txt -Encoding utf8
@@ -278,7 +278,7 @@ Un’organizzazione usa SSID separati per dipendenti e ospiti. Un dipendente rem
 
 12. **Salvare il percorso con la VPN connessa.**
 
-    **Windows — PowerShell:**
+    **Windows - PowerShell:**
 
     ```powershell
     tracert -d example.com 2>&1 | Out-File percorso-con-vpn.txt -Encoding utf8
