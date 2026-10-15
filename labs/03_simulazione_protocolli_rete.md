@@ -18,11 +18,11 @@ Il percorso sviluppa i temi delle slide: modello, incapsulamento, URL, TCP/UDP, 
 | 4. GET contro HEAD                 |      15 | Confronto di richieste e risposte               |
 | 5. Conversazione TCP               |      20 | Analisi della cattura o del modello alternativo |
 | 6. Nomi, indirizzi e DNS           |      10 | Analisi di una query o del caso offline         |
-| 7. Guasti e ripristino             |      25 | Arresto, recupero e ticket a coppie             |
+| 7. Guasti e ripristino             |      25 | Arresto, recupero e ticket individuale          |
 | 8. Consegna e cleanup              |      15 | Relazione verificabile e server fermato         |
 | **Totale**                         | **130** |                                                 |
 
-Lavorare a coppie: una persona esegue, l'altra scrive previsioni e raccoglie evidenze. Scambiare i ruoli alle attività 4 e 7. Chi lavora da solo segue gli stessi passi e registra la causa introdotta prima della diagnosi.
+Il laboratorio è individuale. Ogni studente esegue le prove, scrive le previsioni e raccoglie le proprie evidenze. Nel ticket registra la causa introdotta e verifica la diagnosi con una controprova.
 
 ## Prerequisiti e scenario
 
@@ -32,7 +32,7 @@ Un piccolo servizio deve pubblicare un messaggio. Il client segnala, in momenti 
 
 Client e server saranno sullo stesso computer, su `127.0.0.1`. È traffico reale su loopback, non una simulazione di Internet: non attraversa AP, switch o router. Nessuna risorsa AWS, modifica della rete o credenziale è necessaria. Solo la query DNS può richiedere la rete esterna e dispone di un'alternativa offline.
 
-## 1. Preparazione — 10 minuti
+## 1. Preparazione - 10 minuti
 
 1. Nel file manager creare `Documenti/lab03-protocolli`, indicata qui come `LAB03`. Se esiste già un'esecuzione precedente, usare una nuova cartella.
 2. Creare al suo interno le cartelle `sito`, `evidenze` e `sito-vuoto`. Lasciare vuota quest'ultima.
@@ -72,7 +72,7 @@ Copiare in `consegna03.md` questo modello e completarlo durante il lavoro:
 
 ```markdown
 # Consegna Lab 03
-Componenti della coppia:
+Studente:
 Sistema operativo e versioni Python/curl:
 Porta usata:
 Attività 5: cattura reale / modello sintetico
@@ -103,7 +103,7 @@ Controprova di ripristino:
 
 **Checkpoint:** entrambi i terminali sono in `LAB03`; `sito` contiene solo `messaggio.txt`; `sito/assente.txt` non esiste.
 
-## 2. Modello e previsioni — 10 minuti
+## 2. Modello e previsioni - 10 minuti
 
 Prima di avviare il server:
 
@@ -116,7 +116,7 @@ Discutere: la porta del client deve essere 8080? Serve DNS per questo URL? Dove 
 
 **Checkpoint:** il disegno non introduce dispositivi intermedi inesistenti e distingue la porta del servizio dalla porta temporanea del client.
 
-## 3. Tre prove HTTP controllate — 25 minuti
+## 3. Tre prove HTTP controllate - 25 minuti
 
 ### Avvio del server e cattura facoltativa
 
@@ -154,7 +154,7 @@ $LASTEXITCODE
 
 Le opzioni usate sono: `-sS` elimina la barra di avanzamento mantenendo gli errori; `-i` include le intestazioni; `--max-time 5` limita l'attesa; `--noproxy '*'` esclude il proxy per queste richieste locali. La redirezione salva risposta ed errori.
 
-### P1 — File presente
+### P1 - File presente
 
 ```bash
 # Linux/macOS
@@ -168,7 +168,7 @@ curl.exe --noproxy "*" --max-time 5 -sS -i http://127.0.0.1:8080/messaggio.txt *
 
 Identificare riga di stato, almeno due intestazioni, riga vuota di separazione e corpo `LAB03-OK`. Nel log cercare metodo, percorso e stato della stessa richiesta.
 
-### P2 — Cambia soltanto il percorso
+### P2 - Cambia soltanto il percorso
 
 Verificare nel file manager che `sito/assente.txt` non esista, poi eseguire:
 
@@ -186,7 +186,7 @@ Confrontare stato, tipo di contenuto e corpo con P1. Nel caso atteso il corpo è
 
 Questi comandi non usano `--fail`: una risposta HTTP 404 completa normalmente lascia curl con uscita **0**. Il trasferimento è riuscito, ma la risorsa manca. **Codice di uscita e stato HTTP sono informazioni diverse.**
 
-### P3 — Stesso URL, contenuto diverso
+### P3 - Stesso URL, contenuto diverso
 
 Nell'editor sostituire il contenuto di `sito/messaggio.txt` con `LAB03-VERSIONE-2` e salvare, lasciando il server avviato. Prevedere che cosa cambierà:
 
@@ -204,11 +204,11 @@ Confrontare P1 e P3: che cosa è invariato? Che cosa è cambiato? Annotare il `C
 
 **Checkpoint:** tre righe del registro, tre risposte e log corrispondenti. Spiegare perché 200, da solo, non garantisce il contenuto desiderato.
 
-## 4. GET contro HEAD — 15 minuti
+## 4. GET contro HEAD - 15 minuti
 
-Scambiare i ruoli. Il contenuto deve essere tornato a `LAB03-OK`.
+Prima di proseguire, verificare che il contenuto sia tornato a `LAB03-OK`.
 
-### P4 — Leggere richiesta e risposta
+### P4 - Leggere richiesta e risposta
 
 L'opzione `-v` mostra dettagli di connessione e richiesta. Salvare il corpo separatamente dalla traccia:
 
@@ -224,7 +224,7 @@ curl.exe --noproxy "*" --max-time 5 -sS -v http://127.0.0.1:8080/messaggio.txt -
 
 Nella traccia cercare le righe di richiesta precedute da `>` e quelle di risposta precedute da `<`: metodo, percorso, `Host` e stato. Le righe con `*` sono diagnostica di curl. Registrare separatamente le versioni HTTP di richiesta e risposta: non devono necessariamente coincidere.
 
-### P5 — Richiedere soltanto le intestazioni
+### P5 - Richiedere soltanto le intestazioni
 
 Prevedere se HEAD restituirà il corpo, poi usare `-I` (i maiuscola):
 
@@ -252,9 +252,9 @@ Spiegare perché HEAD può riportare un `Content-Length` maggiore di zero senza 
 
 **Checkpoint:** cambia il metodo; host, porta, percorso e contenuto del file rimangono uguali.
 
-## 5. Ricostruire la conversazione TCP — 20 minuti
+## 5. Ricostruire la conversazione TCP - 20 minuti
 
-### Percorso A — Wireshark disponibile
+### Percorso A - Wireshark disponibile
 
 1. Fermare e salvare la cattura in `evidenze/cattura-http.pcapng`. Se era stata avviata dopo le richieste, avviarne una nuova e ripetere P4 salvando gli output con suffisso `-ripetizione`.
 2. Applicare il **display filter** `tcp.port == 8080`: la sintassi differisce dal capture filter.
@@ -266,7 +266,7 @@ Spiegare perché HEAD può riportare un `Content-Length` maggiore di zero senza 
 
 Aggiungere alla consegna la tabella `Evento | Frame osservato | Direzione e porte | Significato` per apertura, richiesta, risposta e chiusura. Scrivere `non osservato` per eventi mancanti e spiegarne il limite.
 
-### Percorso B — Senza Wireshark o permessi di cattura
+### Percorso B - Senza Wireshark o permessi di cattura
 
 Scrivere `Cattura non eseguita`. Usare la traccia curl P4 come **evidenza reale applicativa** e questo **modello sintetico TCP**, senza inventare numeri di frame:
 
@@ -293,7 +293,7 @@ Rispondere in 2–3 frasi per punto:
 
 **Checkpoint:** osservazioni e modello sono distinti; non si deducono prestazioni di Internet da una prova locale.
 
-## 6. Nomi, indirizzi e DNS — 10 minuti
+## 6. Nomi, indirizzi e DNS - 10 minuti
 
 ### Query esplicita, se disponibile
 
@@ -338,9 +338,9 @@ Spiegare perché sostituire l'IP con `localhost` non garantisce una destinazione
 
 **Checkpoint:** non cercare questa query DNS nella cattura filtrata con `tcp port 8080`: quel filtro seleziona il traffico TCP del servizio locale.
 
-## 7. Guasti e ripristino — 25 minuti
+## 7. Guasti e ripristino - 25 minuti
 
-### P6 — Server fermato, URL invariato
+### P6 - Server fermato, URL invariato
 
 Se si usa Wireshark, avviare una nuova cattura loopback con lo stesso capture filter. Nel terminale 1 fermare il proprio server con Ctrl+C, poi nel terminale 2 eseguire:
 
@@ -358,33 +358,33 @@ Leggere subito il codice di uscita. Normalmente si osservano rifiuto di connessi
 
 Se effettuata, fermare e salvare la cattura in `evidenze/cattura-fermato.pcapng`. Cercare SYN ed eventuale RST e confrontare con la cattura funzionante. Annotare l'assenza di nuove richieste GET nel log.
 
-### P7 — Ripristino controllato
+### P7 - Ripristino controllato
 
 Riavviare nel terminale 1 **lo stesso comando dell'attività 3**, con `--directory sito`. Ripetere il comando curl di P6, cambiando soltanto il file di output in `evidenze/p7-ripristino.txt`. Registrare uscita, stato e corpo: il recupero è dimostrato quando tornano risposta 200 e `LAB03-OK`.
 
-### Ticket a coppie — Diagnosi senza conoscere la causa
+### Ticket individuale - Guasto controllato e diagnosi verificabile
 
-Dopo P7, chi prepara il guasto sceglie **una sola** carta e annota la scelta senza mostrarla al compagno. Chi diagnostica riceve soltanto il sintomo: “l'URL originale non restituisce più LAB03-OK”.
+Dopo P7, scegliere **una sola** carta, annotare la causa introdotta e prevedere il sintomo. Eseguire la modifica, poi raccogliere le evidenze che permettono di distinguere quella causa dalle altre. Il problema da descrivere nel ticket è: “l'URL originale non restituisce più LAB03-OK”.
 
 | Carta                          | Unica modifica da introdurre                                                                                             | Ripristino dopo la diagnosi                             |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| A — File spostato              | Rinominare `sito/messaggio.txt` in `messaggio-backup.txt` nella stessa cartella, lasciando il server attivo.             | Ripristinare il nome `messaggio.txt`.                   |
-| B — Cartella pubblicata errata | Fermare il server; riavviarlo con il comando originale sostituendo solo `--directory sito` con `--directory sito-vuoto`. | Fermarlo e riavviare il comando con `--directory sito`. |
-| C — Servizio assente           | Fermare il server con Ctrl+C.                                                                                            | Riavviare il comando originale.                         |
+| A - File spostato              | Rinominare `sito/messaggio.txt` in `messaggio-backup.txt` nella stessa cartella, lasciando il server attivo.             | Ripristinare il nome `messaggio.txt`.                   |
+| B - Cartella pubblicata errata | Fermare il server; riavviarlo con il comando originale sostituendo solo `--directory sito` con `--directory sito-vuoto`. | Fermarlo e riavviare il comando con `--directory sito`. |
+| C - Servizio assente           | Fermare il server con Ctrl+C.                                                                                            | Riavviare il comando originale.                         |
 
-Chi diagnostica deve:
+Completare individualmente i seguenti passi:
 
-1. Scrivere ipotesi, livello coinvolto e prova scelta prima di leggere la carta.
+1. Prima della richiesta, scrivere il risultato previsto, il livello coinvolto e la prova che distingue il guasto introdotto da un'altra possibile causa.
 2. Richiedere l'URL originale con il comando di P6, salvando in `evidenze/ticket-prima.txt`; annotare il codice di uscita.
 3. Leggere risposta e log, poi controllare gli elementi pertinenti: processo, comando di avvio, cartella pubblicata, nome del file.
 4. Proporre una correzione, confrontarla con la carta e applicarla.
 5. Ripetere la richiesta salvando in `evidenze/ticket-dopo.txt`, verificare 200 e corpo atteso e completare il ticket nella consegna.
 
-Se rimane tempo, invertire i ruoli con una seconda carta e usare `ticket2-prima.txt` e `ticket2-dopo.txt`.
+Se rimane tempo, ripetere individualmente con una seconda carta e usare `ticket2-prima.txt` e `ticket2-dopo.txt`.
 
 **Checkpoint:** A e B possono produrre lo stesso 404 per cause diverse. Lo stato da solo non basta a scegliere la correzione: servono cartella, comando e file. Distinguere sintomo, evidenza e causa.
 
-## 8. Consegna e cleanup — 15 minuti
+## 8. Consegna e cleanup - 15 minuti
 
 ### Domande finali
 
@@ -406,7 +406,7 @@ Rispondere citando le prove svolte:
 - In `evidenze`: `p1-presente.txt`, `p2-assente.txt`, `p3-modificato.txt`, `p4-corpo.txt`, `p4-traccia.txt`, `p5-head.txt`, `p6-fermato.txt`, `p7-ripristino.txt`, `log-server.txt`, `ticket-prima.txt`, `ticket-dopo.txt` e `cleanup.txt`.
 - Se effettuate: `cattura-http.pcapng`, `cattura-fermato.pcapng` e `dns.txt`. Altrimenti dichiarare nella consegna il percorso alternativo svolto e i limiti delle osservazioni.
 
-Verificare con un'altra coppia che almeno una prova sia ricostruibile dai file. Non correggere il verbale per far coincidere risultati reali e attesi: spiegare divergenze e verifiche eseguite.
+Verificare autonomamente che almeno una prova sia ricostruibile dai file consegnati. Non correggere il verbale per far coincidere risultati reali e attesi: spiegare divergenze e verifiche eseguite.
 
 ### Criteri di riuscita
 
@@ -445,6 +445,6 @@ Verificare con un'altra coppia che almeno una prova sia ricostruibile dai file. 
 
 ## Riferimenti tecnici
 
-- [Python — http.server e cartella pubblicata](https://docs.python.org/3/library/http.server.html)
-- [curl — opzioni, diagnostica e codici di uscita](https://curl.se/docs/manpage.html)
-- [Wireshark — analisi dei pacchetti catturati](https://www.wireshark.org/docs/wsug_html_chunked/ChapterWork.html)
+- [Python - http.server e cartella pubblicata](https://docs.python.org/3/library/http.server.html)
+- [curl - opzioni, diagnostica e codici di uscita](https://curl.se/docs/manpage.html)
+- [Wireshark - analisi dei pacchetti catturati](https://www.wireshark.org/docs/wsug_html_chunked/ChapterWork.html)
