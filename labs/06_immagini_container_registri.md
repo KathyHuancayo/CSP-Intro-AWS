@@ -12,12 +12,12 @@ Nella lezione di 4 ore: 60 minuti di spiegazioni, 15 di pausa, 150 di laboratori
 
 | Attività                                      | Minuti | Prova pratica                         |
 | --------------------------------------------- | -----: | ------------------------------------- |
-| 1. Preparare EC2 e Docker                     |     25 | Terminale remoto e motore funzionanti |
-| 2. Personalizzare e confrontare due container |     25 | Due pagine diverse dalla stessa base  |
-| 3. Creare e pubblicare immagini su ECR        |     25 | Due tag nel repository privato        |
-| 4. Distribuire, aggiornare e tornare indietro |     30 | Sito raggiungibile e rollback         |
-| 5. Riparare due guasti                        |     25 | Servizio ripristinato dopo ogni prova |
-| 6. Dimostrazione e cleanup                    |     20 | Risorse eliminate e verificabili      |
+| 1. Preparare EC2 e Docker                     | 40 | Terminale remoto e motore funzionanti |
+| 2. Personalizzare e confrontare due container | 20 | Due pagine diverse dalla stessa base  |
+| 3. Creare e pubblicare immagini su ECR        | 20 | Due tag nel repository privato        |
+| 4. Distribuire, aggiornare e tornare indietro | 25 | Sito raggiungibile e rollback         |
+| 5. Riparare due guasti                        | 20 | Servizio ripristinato dopo ogni prova |
+| 6. Dimostrazione e cleanup                    | 25 | Risorse eliminate e verificabili      |
 
 Lavoro individuale; se gli account o le postazioni sono condivisi, lavorare in coppia alternando operatore e verificatore a metà del lab. Entrambi devono eseguire un rilascio.
 
@@ -33,7 +33,29 @@ La sezione 1 prepara il server AWS per entrambi i percorsi. Non eseguire due vol
 
 ## Windows - preparare PowerShell sul PC
 
-Per i blocchi **Windows — PowerShell sul PC** servono Docker Desktop avviato in modalità **Linux containers**, con backend WSL 2 predisposto, e PowerShell 7.3 o successivo (da predisporre prima della lezione). Non usare cmd.exe, Git Bash o una shell Ubuntu WSL per questi blocchi. L'installazione di Docker Desktop va completata prima della lezione secondo le regole delle postazioni.
+Per i blocchi **Windows — PowerShell sul PC** usare Docker Desktop con container Linux e PowerShell 7.3 o successivo. Se mancano, completarli una sola volta prima della lezione:
+
+1. **PowerShell:** aprire la [pagina Microsoft](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows), scaricare l'installer MSI della versione stabile per il proprio PC, aprirlo → **Next → Install → Finish**. Dal menu Start aprire **PowerShell 7**.
+2. **WSL 2:** aprire PowerShell **come amministratore** e verificare:
+
+```powershell
+wsl --status
+```
+
+Solo se WSL manca, installarlo:
+
+```powershell
+wsl --install --no-distribution
+```
+
+Riavviare Windows se richiesto, poi aggiornare WSL:
+
+```powershell
+wsl --update
+```
+
+3. **Docker Desktop:** aprire la [pagina ufficiale Windows](https://docs.docker.com/desktop/setup/install/windows-install/), scaricare l'installer adatto al PC e avviarlo. Se proposta, scegliere l'opzione **WSL 2**. Completare l'installazione, riavviare se richiesto e aprire **Docker Desktop** dal menu Start. In **Settings → General**, attivare **Use the WSL 2 based engine**, se l'opzione è disponibile, e applicare. Attendere che il motore sia avviato; dal menu Docker scegliere **Switch to Linux containers** solo se si stanno usando container Windows.
+4. Se l'installazione richiede permessi amministrativi o la virtualizzazione risulta disabilitata, far completare la configurazione al supporto della postazione. Non serve aprire una shell Ubuntu: i comandi Windows del lab si eseguono in PowerShell.
 
 Aprire una nuova finestra PowerShell dedicata al lab, senza privilegi amministrativi. Verificare la versione:
 
@@ -101,21 +123,49 @@ Per HTTP usare `curl.exe`, non `curl`. Per leggere il codice di uscita di un com
 $LASTEXITCODE
 ```
 
-## Prima della lezione - preparazione del docente
+## Preparazione dell’ambiente
 
 Verificare nel Learner Lab reale: avvio EC2, associazione di `LabInstanceProfile`, Session Manager, accesso a ECR e download delle immagini. La policy fornita ammette i servizi coinvolti in `us-east-1` e limita dimensioni e ruoli; non garantisce disponibilità, budget o assenza di ulteriori vincoli dell'account.
 
-Servono una subnet pubblica già predisposta, una route verso Internet Gateway, assegnazione IPv4 pubblico e uscita HTTPS/DNS. Si può usare la VPC predefinita se presente e verificata. Non chiedere agli studenti di creare NAT Gateway o infrastruttura di rete aggiuntiva durante questo lab.
+Gli studenti creano la propria rete seguendo la sezione 1.0: VPC, subnet pubblica, Internet Gateway, route table e security group. Non è richiesta una rete preesistente.
 
 Predisporre una VM sostitutiva per eventuali problemi Academy: **la pratica non viene sostituita da una descrizione ipotetica**. L'eventuale recupero deve includere esecuzione e verifica reali. I nomi del lab devono essere liberi nell'account e sulla macchina scelta.
 
-## 1. Creare il server e preparare Docker - 25 minuti
+## 1. Creare il server e preparare Docker - 40 minuti
+
+### 1.0 Creare la rete AWS - guida breve completa
+
+Usare la **Console web**, su Windows o Linux. Sostituire `SIGLA` con una sigla minuscola, es. `ab12`. Annotare gli ID delle risorse create; lasciare invariate le reti esistenti.
+
+1. **AWS:** Academy → **Start Lab** → indicatore verde → **AWS**. Regione: **US East (N. Virginia), us-east-1**. Aprire **VPC**.
+
+2. **VPC:** **Your VPCs → Create VPC → VPC only**. Name tag: `lab06-SIGLA-vpc`; IPv4: **Manual input**, `10.60.0.0/16`; IPv6: **No IPv6 CIDR block**; Tenancy: **Default** → **Create VPC**.
+
+3. **DNS:** selezionare la VPC → **Actions → Edit VPC settings**. Abilitare **DNS resolution** e **DNS hostnames** → **Save changes**. Mantenere il DHCP option set predefinito, con **AmazonProvidedDNS**.
+
+4. **Subnet:** **Subnets → Create subnet**. VPC: quella appena creata; Name: `lab06-SIGLA-public`; AZ: **us-east-1a** (o altra AZ standard disponibile); VPC CIDR: `10.60.0.0/16`; Subnet CIDR: `10.60.1.0/24` → **Create subnet**.
+
+5. **IPv4 pubblico:** selezionare la subnet → **Actions → Edit subnet settings** → abilitare **Enable auto-assign public IPv4 address** → **Save**.
+
+6. **Gateway:** **Internet gateways → Create internet gateway**. Name: `lab06-SIGLA-igw` → **Create internet gateway**. Poi **Actions → Attach to VPC** → `lab06-SIGLA-vpc` → **Attach internet gateway**. Stato atteso: **Attached**.
+
+7. **Route table:** **Route tables → Create route table**. Name: `lab06-SIGLA-rt-public`; VPC: `lab06-SIGLA-vpc` → **Create route table**. In **Routes → Edit routes → Add route**: Destination `0.0.0.0/0`; Target **Internet Gateway** → proprio `igw-...` → **Save changes**. Conservare `10.60.0.0/16 → local`.
+
+8. **Associazione:** nella route table → **Subnet associations → Edit subnet associations** → selezionare solo `lab06-SIGLA-public` → **Save associations**. Lasciare **Main: No**.
+
+9. **Security group:** **Security groups → Create security group**. Name: `lab06-SIGLA-sg`; Description: `Accesso web laboratorio 06`; VPC: `lab06-SIGLA-vpc`. **Inbound → Add rule:** tipo **Custom TCP**, TCP **8080**; Source **My IP**, cioè IP pubblico del PC con `/32`. **Outbound:** **All traffic → 0.0.0.0/0** → **Create security group**. Nessun ingresso SSH o All traffic.
+
+10. **Controllo:** **Subnets → `lab06-SIGLA-public` → Route table**: verificare `lab06-SIGLA-rt-public` e `0.0.0.0/0 → igw-...`, **Active**. Mantenere la **Network ACL predefinita**, con traffico consentito in ingresso e uscita.
+
+**Per la EC2:** scegliere questa VPC, questa subnet e questo security group; **Auto-assign public IP: Enable**. Non servono NAT Gateway, Elastic IP o VPC endpoint. Se cambia l'IP del PC, aggiornare **My IP /32** nel gruppo.
+
+**IAM:** **Advanced details → IAM instance profile → LabInstanceProfile**, fornito da Academy con `LabRole`. Se manca, verificare account/sessione con il supporto Academy; la policy studente non consente di creare un nuovo ruolo IAM.
 
 ### 1.1 Provisioning reale in Console
 
 Avviare Learner Lab e aprire la Console assegnata. Selezionare **us-east-1**.
 
-In `EC2 → Instances → Launch instances` impostare:
+Aprire **EC2 → Instances → Launch instances**. In **Network settings → Edit**, selezionare esplicitamente VPC e subnet della tabella; in **Firewall (security groups)** scegliere **Select existing security group**, rimuovere eventuali selezioni automatiche e scegliere solo il gruppo del lab. Impostare:
 
 | Campo                                   | Valore                                                                |
 | --------------------------------------- | --------------------------------------------------------------------- |
@@ -123,21 +173,25 @@ In `EC2 → Instances → Launch instances` impostare:
 | AMI                                     | Amazon Linux 2023 ufficiale, x86_64                                   |
 | Tipo                                    | `t3.micro`, On-Demand, tenancy default                                |
 | Key pair                                | Proceed without key pair: useremo Session Manager                     |
-| Rete                                    | Subnet pubblica predisposta dal docente                               |
+| Rete | VPC `lab06-SIGLA-vpc`, subnet `lab06-SIGLA-public` create nella sezione 1.0 |
 | Auto-assign public IP                   | Enable                                                                |
-| Security group nuovo                    | `lab06-SIGLA-sg`                                                      |
+| Security group | **Select existing security group** → `lab06-SIGLA-sg` |
 | Ingresso                                | Custom TCP **8080**, sorgente **My IP /32**                           |
 | SSH                                     | Nessuna regola 22: Session Manager non la richiede                    |
-| Uscita                                  | Configurazione della rete didattica che consenta Internet/HTTPS e DNS |
+| Uscita | All traffic → `0.0.0.0/0`, nel gruppo creato nella sezione 1.0 |
 | Disco                                   | 8 GiB gp3, Delete on termination attivo                               |
 | Advanced details → IAM instance profile | **LabInstanceProfile** già esistente                                  |
 | Metadata                                | IMDSv2 richiesto; mantenere hop limit 1                               |
 
 Non creare ruoli IAM, chiavi permanenti, Elastic IP o load balancer. Il sito usa HTTP e dati sintetici, accessibili solo dall'IP autorizzato; non inserire nomi di clienti, password o dati personali.
 
+**Prima di premere Launch instance:** espandere **Configure storage → Advanced** e verificare **Delete on termination** per il disco radice; in **Advanced details** selezionare `LabInstanceProfile`, **Metadata version: V2 only (token required)** e **Metadata response hop limit: 1**. Dopo l'avvio, in **Instances → lab06-SIGLA → Networking** verificare VPC/subnet corrette e un **Public IPv4 address** non vuoto. In **Security** deve esserci solo `lab06-SIGLA-sg`. Annotare ID istanza e volume radice.
+
 Lanciare **una sola istanza**. Attendere i controlli di stato, quindi `Connect → Session Manager → Connect`. La registrazione SSM può richiedere alcuni minuti.
 
-Se il pulsante non si abilita, controllare profilo associato, agente SSM e connettività con il docente. Non aprire SSH a tutto Internet per aggirare il problema.
+Se il pulsante non si abilita, controllare profilo associato, agente SSM e connettività. Non aprire SSH a tutto Internet per aggirare il problema.
+
+**Se Session Manager non si connette:** attendere qualche minuto; verificare i controlli di stato, il profilo in **Actions → Security → Modify IAM role**, la route della subnet e l'uscita del security group. Se il profilo era assente, scegliere `LabInstanceProfile` e salvare. Usare l'AMI ufficiale indicata, con agente SSM; non aprire la porta 22 per sostituire questi controlli.
 
 ### 1.2 Preparare la sessione Linux sulla EC2 - anche da un PC Windows
 
@@ -191,9 +245,9 @@ aws sts get-caller-identity --region us-east-1
 
 L'ARN deve riferirsi al ruolo predisposto `LabRole`. Non eseguire `aws configure`: le credenziali temporanee arrivano dal profilo dell'istanza. Se la CLI manca o l'identità non è quella prevista, far verificare l'AMI e il profilo.
 
-**Checkpoint pratico:** mostrare al docente il terminale remoto e Docker Server funzionante.
+**Checkpoint pratico:** verificare che il terminale remoto sia accessibile e Docker Server sia funzionante.
 
-## 2. Una base, due esecuzioni, una pagina propria - 25 minuti
+## 2. Una base, due esecuzioni, una pagina propria - 20 minuti
 
 Scaricare la base:
 
@@ -442,13 +496,13 @@ docker image inspect officina06:1.0 officina06:2.0 --format '{{.RepoTags}} {{.Id
 
 **Checkpoint pratico:** i due tag locali hanno ID diversi. Il container di controllo è rimasto invariato.
 
-## 3. Pubblicare davvero in Amazon ECR - 25 minuti
+## 3. Pubblicare davvero in Amazon ECR - 20 minuti
 
 ### Solo Windows - credenziali temporanee Academy per ECR
 
 Questi comandi si eseguono nella finestra **PowerShell dedicata**. Sulla EC2 si continua a usare `LabInstanceProfile`: non copiare credenziali sul server o dentro le immagini.
 
-Sul PC deve essere già installata AWS CLI v2. Verificare:
+Se sul PC manca AWS CLI v2: scaricare il [pacchetto MSI ufficiale](https://awscli.amazonaws.com/AWSCLIV2.msi), aprirlo → **Next → accettare la licenza → Install → Finish**. Chiudere e riaprire PowerShell 7 per aggiornare il PATH, poi tornare nella cartella del lab. Verificare:
 
 ```powershell
 aws --version
@@ -640,7 +694,7 @@ docker image inspect officina06:1.0 officina06:stabile --format '{{.RepoTags}} {
 
 Gli ID coincidono: aggiungere un nome non ricostruisce il software. I tag immutabili di ECR impediscono invece di sovrascrivere un tag remoto già pubblicato; per un nuovo rilascio si sceglie un nuovo tag.
 
-## 4. Recuperare dal registry, distribuire e fare rollback - 30 minuti
+## 4. Recuperare dal registry, distribuire e fare rollback - 25 minuti
 
 ### 4.1 Togliere i riferimenti locali alla V1
 
@@ -756,6 +810,8 @@ Conservare screenshot 2. La pubblicazione Docker ascolta sulle interfacce del se
 
 ### 4.3 Rilasciare V2
 
+**Dove eseguire i comandi:** nella **EC2 Linux**, aprendo **AWS Console → EC2 → Instances → lab06-SIGLA → Connect → Session Manager → Connect**. Vale anche per chi usa un PC Windows. Questi comandi gestiscono il sito AWS; non incollarli nel PowerShell locale.
+
 Scaricare il riferimento V2:
 
 ```bash
@@ -784,7 +840,9 @@ Ricaricare il browser, anche con Ctrl+F5. Verificare la nuova scritta e il nuovo
 
 ### 4.4 Rollback operativo
 
-Il docente annuncia: «La versione approvata è ancora V1». Non modificare HTML dentro il container pubblicato: ridistribuire l'artefatto precedente.
+**Dove eseguire i comandi:** nella **EC2 Linux**, aprendo **AWS Console → EC2 → Instances → lab06-SIGLA → Connect → Session Manager → Connect**. Vale anche per chi usa un PC Windows. Questi comandi gestiscono il sito AWS; non incollarli nel PowerShell locale.
+
+Ripristinare la versione V1 ridistribuendo l'immagine precedente.
 
 Fermare V2:
 
@@ -812,9 +870,26 @@ sudo docker inspect lab06-sito --format '{{.Config.Image}} {{.Image}}'
 
 **Checkpoint pratico:** stesso indirizzo web, ritorno a V1, immagine corretta. Conservare screenshot 4 della verifica.
 
-## 5. Due guasti reali da riparare - 25 minuti
+**Windows — verifica dal PC dopo il rollback:** tornare in PowerShell. Se la finestra è nuova, impostare l'IPv4 pubblico della EC2:
+
+```powershell
+$Ec2Ip = Read-Host "IPv4 pubblico della EC2"
+```
+
+Richiedere la pagina del server AWS e controllare che mostri V1:
+
+```powershell
+curl.exe --noproxy "*" --max-time 5 -i "http://${Ec2Ip}:8080/"
+```
+
+Il comando `docker stop lab06-sito` eseguito in PowerShell fermerebbe un container locale omonimo, non quello AWS: per stop/rm/run usare la sessione EC2 indicata sopra.
+
+
+## 5. Due guasti reali da riparare - 20 minuti
 
 ### Guasto A - Il processo si ferma
+
+**Dove eseguire i comandi:** nella **EC2 Linux**, aprendo **AWS Console → EC2 → Instances → lab06-SIGLA → Connect → Session Manager → Connect**. Vale anche per chi usa un PC Windows. Questi comandi gestiscono il sito AWS; non incollarli nel PowerShell locale.
 
 Fermare volontariamente il proprio sito:
 
@@ -858,6 +933,8 @@ Deve tornare V1. `unless-stopped` non annulla uno stop esplicito dell'operatore.
 
 ### Guasto B - Il processo funziona, la rete non lo lascia raggiungere
 
+**Dove eseguire i comandi:** nella **EC2 Linux**, aprendo **AWS Console → EC2 → Instances → lab06-SIGLA → Connect → Session Manager → Connect**. Vale anche per chi usa un PC Windows. Questi comandi gestiscono il sito AWS; non incollarli nel PowerShell locale.
+
 Nella Console aprire **il solo security group creato per questo lab**. Annotare la regola iniziale e rimuovere temporaneamente l'ingresso TCP 8080.
 
 Aprire una nuova finestra privata sul PC e riprovare il sito. Le connessioni già stabilite possono sopravvivere per il connection tracking; non usare la pagina rimasta in cache come prova. Una richiesta nuova deve fallire dopo l'applicazione della regola.
@@ -872,15 +949,15 @@ La risposta locale deve funzionare. Ripristinare la sola regola TCP 8080 da **My
 
 **La prova è conclusa quando l'accesso esterno torna a funzionare.** Non modificare immagini o container per correggere una regola di rete.
 
-### Sfida finale - 5 minuti, compresi nei 25
+### Sfida finale - 5 minuti, compresi nei 20
 
-Il docente sceglie V1 o V2. Senza ricopiare HTML, pubblicare la versione richiesta usando il ciclo stop → rm → run già sperimentato. Mostrare pagina, immagine utilizzata e una riga di access log generata da una nuova richiesta.
+Scegliere V1 o V2 e pubblicarla usando il ciclo stop → rm → run già sperimentato. Verificare la pagina, l'immagine utilizzata e una riga di access log generata da una nuova richiesta.
 
 Se resta tempo, creare una V3 con una modifica scelta dallo studente, pubblicarla con un nuovo tag e dimostrare il ritorno alla versione precedente.
 
-## 6. Consegna pratica e cleanup - 20 minuti
+## 6. Consegna pratica e cleanup - 25 minuti
 
-Il docente verifica dal vivo quattro risultati: pagina personalizzata, due immagini in ECR, aggiornamento/rollback e recupero dei due guasti. La scheda finale può essere un foglio o un file di testo: **sigla, ID istanza, nome repository, due digest, risorse rimosse**. Non servono tabelle di previsioni o una relazione Markdown.
+Verificare quattro risultati: pagina personalizzata, due immagini in ECR, aggiornamento/rollback e recupero dei due guasti. La scheda finale può essere un foglio o un file di testo: **sigla, ID istanza, nome repository, due digest, risorse rimosse**. Non servono tabelle di previsioni o una relazione Markdown.
 
 Prima di eliminare, salvare i quattro screenshot sul PC. Se si vuole conservare il sorgente, visualizzarlo e copiarlo in un file locale:
 
@@ -956,26 +1033,34 @@ Conservare `index.html` e gli screenshot, poi completare anche il cleanup AWS se
 
 ### Cleanup in Console
 
-1. In ECR selezionare **il proprio repository lab06-SIGLA** e cancellarlo con le sue immagini. Rileggere il nome prima di confermare; verificare che non compaia più.
-2. In EC2 selezionare **la propria istanza lab06-SIGLA → Instance state → Terminate**. Stop non chiude il ciclo: i volumi restano allocati.
-3. Attendere `Terminated`. In Volumes verificare che il disco radice, di cui si era annotata l'associazione, sia stato eliminato. Non cancellare dischi sconosciuti.
-4. Eliminare il solo security group del lab dopo il rilascio delle interfacce di rete. Se è ancora in uso, attendere e ricontrollare.
-5. Annotare eventuali residui e l'errore; chiudere Learner Lab secondo la procedura dell'aula.
+Prima della rete: **ECR → Private repositories → lab06-SIGLA → Delete**. Confermare la cancellazione del proprio repository e delle sue immagini; verificare che non sia più elencato.
 
-La terminazione elimina anche immagini e file locali sul disco radice. Non è necessario rimuoverli singolarmente prima di terminare l'istanza. L'uso di EC2, EBS, IPv4 pubblico ed ECR consuma budget Academy: niente risorse lasciate attive fra le lezioni senza un accordo esplicito del docente.
+Poi eliminare le risorse AWS in quest'ordine:
+
+1. In **EC2 → Instances** selezionare solo `lab06-SIGLA` → **Instance state → Terminate (delete) instance** → confermare. Attendere **Terminated**: Stop non elimina i dischi.
+2. In **EC2 → Volumes** cercare l'ID del disco radice annotato all'avvio. Deve essere scomparso grazie a **Delete on termination**. Se è rimasto **Available**, verificarne la proprietà e cancellare solo quel disco con **Actions → Delete volume**.
+3. In **EC2 → Network Interfaces** filtrare per l'ID della VPC del lab e attendere il rilascio dell'interfaccia della EC2. Non forzare la cancellazione di interfacce ancora in uso.
+4. In **VPC → Security groups** selezionare `lab06-SIGLA-sg` → **Actions → Delete security groups** → confermare.
+5. In **VPC → Subnets** selezionare `lab06-SIGLA-public` → **Actions → Delete subnet** → confermare. Controllare che non sia più elencata.
+6. In **VPC → Route tables** selezionare `lab06-SIGLA-rt-public`, verificare **Main: No** e nessuna associazione residua → **Actions → Delete route table** → confermare.
+7. In **VPC → Internet gateways** selezionare `lab06-SIGLA-igw` → **Actions → Detach from VPC** → confermare. Poi **Actions → Delete internet gateway** → confermare.
+8. In **VPC → Your VPCs** selezionare `lab06-SIGLA-vpc` → **Actions → Delete VPC**. Controllare l'elenco delle risorse residue e confermare solo per la propria VPC. I suoi oggetti default vengono rimossi con essa; non cancellare il DHCP option set condiviso.
+9. Aggiornare gli elenchi e verificare l'assenza dei propri ID. Se compare **DependencyViolation**, leggere la dipendenza indicata e completare la rimozione della propria risorsa prima di riprovare. Annotare eventuali residui; solo dopo chiudere Learner Lab.
+
+La terminazione elimina anche immagini e file locali sul disco radice. Non è necessario rimuoverli singolarmente prima di terminare l'istanza. L'uso di EC2, EBS, IPv4 pubblico ed ECR consuma budget Academy: completare il cleanup delle risorse al termine del laboratorio.
 
 ## Diagnosi rapida
 
 | Sintomo                                        | Verifica utile                                       | Azione                                            |
 | ---------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------- |
-| Session Manager non disponibile                | Profilo, agente, IPv4 pubblico, route e uscita HTTPS | Correggere l'ambiente con il docente              |
+| Session Manager non disponibile                | Profilo, agente, IPv4 pubblico, route e uscita HTTPS | Correggere la configurazione dell'ambiente              |
 | ECR AccessDenied                               | ARN LabRole, regione, URI e permessi effettivi       | Non creare nuovi ruoli; conservare l'errore       |
 | Tag remoto già esistente                       | Repository con tag immutabili                        | Usare un nuovo tag per il nuovo contenuto         |
 | Docker non risponde                            | Stato servizio e uso di sudo                         | Avviare il servizio sulla propria VM              |
 | Sito locale corretto, browser esterno bloccato | IP pubblico, TCP 8080, sorgente My IP                | Correggere solo l'accesso di rete                 |
 | Pagina Nginx standard                          | Container, porta e COPY effettuata con docker cp     | Controllare quale immagine è stata pubblicata     |
 | Sessione terminale riaperta                    | Variabili REPO_URI e REGISTRY assenti                | Riassegnarle con i comandi della sezione 3        |
-| Budget o provisioning bloccato                 | Messaggio Academy                                    | Usare la postazione reale predisposta dal docente |
+| Budget o provisioning bloccato                 | Messaggio Academy                                    | Usare una postazione alternativa con ambiente operativo |
 
 ## Riferimenti operativi
 
@@ -987,3 +1072,12 @@ La terminazione elimina anche immagini e file locali sul disco radice. Non è ne
 
 - [Docker Desktop su Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
 - [AWS CLI: variabili di ambiente in PowerShell](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html)
+
+- [AWS: creare una VPC](https://docs.aws.amazon.com/vpc/latest/userguide/create-vpc.html)
+- [AWS: creare una subnet](https://docs.aws.amazon.com/vpc/latest/userguide/create-subnets.html)
+- [AWS: IPv4 pubblico della subnet](https://docs.aws.amazon.com/vpc/latest/userguide/subnet-public-ip.html)
+- [AWS: Internet Gateway e route](https://docs.aws.amazon.com/vpc/latest/userguide/working-with-igw.html)
+- [AWS: associazioni delle route table](https://docs.aws.amazon.com/vpc/latest/userguide/WorkWithRouteTables.html)
+- [AWS: impostazioni DNS](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns-updating.html)
+- [AWS: creazione del security group](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/creating-security-group.html)
+- [AWS: eliminazione della VPC e dipendenze](https://docs.aws.amazon.com/vpc/latest/userguide/delete-vpc.html)
